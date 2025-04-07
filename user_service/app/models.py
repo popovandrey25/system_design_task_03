@@ -22,5 +22,5 @@ class User(Base):
     __tablename__ = "users"
 
     full_name: Mapped[str] = mapped_column(String(200), index=True)
-    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    login: Mapped[str] = mapped_column(String(200), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(200))

@@ -1,55 +1,50 @@
 from typing import List, Optional
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth import get_password_hash
 from app.models import User
 
 
 class UserRepository:
-    """
-    Репозиторий для работы с пользователями:
-    создание, поиск по логину, поиск по имени/фамилии.
-    Хранение - в памяти (fake_users_db).
-    """
+    @staticmethod
+    async def create_user(
+        session: AsyncSession,
+        login: str,
+        password: str,
+        first_name: str,
+        last_name: str
+    ) -> User:
+        result = await session.execute(select(User).where(User.login == login))
+        if result.scalar_one_or_none():
+            raise ValueError("User with this login already exists")
+
+        user = User(
+            login=login,
+            full_name=f"{first_name} {last_name}",
+            hashed_password=get_password_hash(password),
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
 
     @staticmethod
-    def create_user(login: str, password: str, first_name: str, last_name: str) -> User:
-        # new_id = get_next_user_id()
-        # new_user = User(
-        #     user_id=new_id,
-        #     login=login,
-        #     password=password,
-        #     first_name=first_name,
-        #     last_name=last_name,
-        # )
-        # fake_users_db[new_id] = new_user
-        # return new_user
-        pass
+    async def get_by_login(session: AsyncSession, login: str) -> Optional[User]:
+        result = await session.execute(select(User).where(User.login == login))
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def get_by_login(login: str) -> Optional[User]:
-        # for user in fake_users_db.values():
-        #     if user.login == login:
-        #         return user
-        # return None
-        pass
+    async def find_by_name(session: AsyncSession, first_name: str, last_name: str) -> List[User]:
+        stmt = select(User)
 
-    @staticmethod
-    def get_by_id(user_id: int) -> Optional[User]:
-        # return fake_users_db.get(user_id)
-        pass
+        if first_name and last_name:
+            stmt = stmt.where(User.full_name == f"{first_name} {last_name}")
+        elif first_name:
+            stmt = stmt.where(User.full_name.ilike(f"{first_name} %"))
+        elif last_name:
+            stmt = stmt.where(User.full_name.ilike(f"% {last_name}"))
 
-    @staticmethod
-    def find_by_name(first_name: str, last_name: str) -> List[User]:
-        # result = []
-        # for user in fake_users_db.values():
-        #     # Если не задана фамилия, ищем только по имени
-        #     if first_name and last_name:
-        #         if user.first_name == first_name and user.last_name == last_name:
-        #             result.append(user)
-        #     elif first_name:
-        #         if user.first_name == first_name:
-        #             result.append(user)
-        #     elif last_name:
-        #         if user.last_name == last_name:
-        #             result.append(user)
-        # return result
-        pass
+        result = await session.execute(stmt)
+        return result.scalars().all()
