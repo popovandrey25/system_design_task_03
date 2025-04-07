@@ -1,27 +1,24 @@
-from typing import Dict
-from app.models import User
+import os
+from contextlib import contextmanager
 
-"""
-'Фейковая' база данных в памяти.
-Словарь:
-  key = user_id (int)
-  value = объект User
-"""
-fake_users_db: Dict[int, User] = {}
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Для генерации айдишников
-fake_user_id_sequence = 0
-
-
-def get_next_user_id() -> int:
-    global fake_user_id_sequence
-    fake_user_id_sequence += 1
-    return fake_user_id_sequence
-
-
-# Создадим администратора при старте
-admin_user = User(
-    user_id=1, login="admin", password="secret", first_name="Admin", last_name="User"
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://user:secret@localhost:5432/user_db"
 )
-fake_users_db[1] = admin_user
-fake_user_id_sequence = 1
+
+engine = create_engine(DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+Base = declarative_base()
+
+@contextmanager
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
