@@ -1,7 +1,6 @@
 import os
-from contextlib import contextmanager
 
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = os.environ.get(
@@ -9,16 +8,12 @@ DATABASE_URL = os.environ.get(
     "postgresql+asyncpg://user:secret@localhost:5432/user_db"
 )
 
-engine = create_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+engine = create_async_engine(DATABASE_URL, echo=True)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 Base = declarative_base()
 
-@contextmanager
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
+async def get_async_session() -> AsyncSession:
+    async with async_session_maker() as session:
+        yield session
